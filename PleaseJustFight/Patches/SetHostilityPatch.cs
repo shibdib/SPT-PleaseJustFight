@@ -1,4 +1,6 @@
-﻿using System.Reflection;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using Comfort.Common;
 using EFT;
 using HarmonyLib;
@@ -6,73 +8,50 @@ using SPT.Reflection.Patching;
 
 namespace PleaseJustFight.Patches
 {
-	public class SetHostilityPatch : ModulePatch
-	{
-		private static readonly FieldInfo WildSpawnTypeField = AccessTools.Field(typeof(BotDifficultySettingsClass), "wildSpawnType_0");
-		
-		protected override MethodBase GetTargetMethod()
-		{
-			return AccessTools.Method(typeof(BotDifficultySettingsClass), "IsPlayerEnemy");
-		}
+    public class SetHostilityPatch : ModulePatch
+    {
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(BotOwner), "method_10");
+        }
+        
+        [PatchPostfix]
+        private static void PatchPostfix(BotOwner __instance)
+        {
+            SetPmcEnemies(__instance);
+        }
 
-		[PatchPrefix]
-		public bool PatchPrefix(IPlayer player)
-		{
-			WildSpawnType wildSpawnType = (WildSpawnType)WildSpawnTypeField.GetValue(this);
-			
-			AdditionalHostilitySettings[] additionalHostilitySettings = Singleton<IBotGame>.Instance.BotsController
-				.BotLocationModifier.AdditionalHostilitySettings;
-			AdditionalHostilitySettings additionalHostilitySettings2 = null;
-			if (additionalHostilitySettings != null)
-			{
-				foreach (AdditionalHostilitySettings additionalHostilitySettings3 in additionalHostilitySettings)
-				{
-					if (additionalHostilitySettings3.BotRole == wildSpawnType)
-					{
-						additionalHostilitySettings2 = additionalHostilitySettings3;
-						break;
-					}
-				}
-			}
+        private static void SetPmcEnemies(BotOwner newBot)
+        {
+            // Only PMC's
+            if (!newBot.IsRole(WildSpawnType.pmcBEAR) && !newBot.IsRole(WildSpawnType.pmcUSEC))
+            {
+                return;
+            }
+            
+            IEnumerable<IPlayer> humanPlayers = Singleton<GameWorld>.Instance.AllAlivePlayersList
+                .Where(p => !p.IsAI);
+            
+            // Add all players to enemy list
+            foreach (IPlayer humanPlayer in humanPlayers)
+            {
+                newBot.BotsGroup.AddEnemy(humanPlayer, EBotEnemyCause.initial);
+            }
 
-			switch (player.Side)
-			{
-				case EPlayerSide.Usec:
-					if (additionalHostilitySettings2 != null)
-					{
-						if (additionalHostilitySettings2.UsecPlayerBehaviour.HasFlag(EWarnBehaviour.AlwaysFriends) ||
-						    additionalHostilitySettings2.UsecPlayerBehaviour.HasFlag(EWarnBehaviour.Neutral) ||
-						    additionalHostilitySettings2.UsecPlayerBehaviour.HasFlag(EWarnBehaviour.Warn))
-						{
-							return false;
-						}
-					}
-					return true;
-				case EPlayerSide.Bear:
-					if (additionalHostilitySettings2 != null)
-					{
-						if (additionalHostilitySettings2.BearPlayerBehaviour.HasFlag(EWarnBehaviour.AlwaysFriends) ||
-						    additionalHostilitySettings2.BearPlayerBehaviour.HasFlag(EWarnBehaviour.Neutral) ||
-						    additionalHostilitySettings2.BearPlayerBehaviour.HasFlag(EWarnBehaviour.Warn))
-						{
-							return false;
-						}
-					}
-					return true;
-				case EPlayerSide.Savage:
-					if (additionalHostilitySettings2 != null)
-					{
-						if (additionalHostilitySettings2.SavagePlayerBehaviour.HasFlag(EWarnBehaviour.AlwaysFriends) ||
-						    additionalHostilitySettings2.SavagePlayerBehaviour.HasFlag(EWarnBehaviour.Neutral) ||
-						    additionalHostilitySettings2.SavagePlayerBehaviour.HasFlag(EWarnBehaviour.Warn))
-						{
-							return false;
-						}
-					}
-					return true;
-				default:
-					return false;
-			}
-		}
-	}
+            IEnumerable<BotOwner> activatedBots = Singleton<IBotGame>.Instance.BotsController.Bots.BotOwners
+                .Where(b => b.BotState == EBotState.Active && b.Profile.Id != newBot.Profile.Id);
+
+            foreach (BotOwner bot in activatedBots)
+            {
+                // Special cases like santa
+                if (bot.IsRole(WildSpawnType.gifter))
+                {
+                    continue;
+                }
+                
+                bot.BotsGroup.AddEnemy(newBot, EBotEnemyCause.initial);
+                newBot.BotsGroup.AddEnemy(bot, EBotEnemyCause.initial);
+            }
+        } 
+    }
 }
