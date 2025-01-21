@@ -43,8 +43,8 @@ namespace PleaseJustFight.Patches
 
             foreach (BotOwner bot in activatedBots)
             {
-                // Special cases like santa
-                if (bot.IsRole(WildSpawnType.gifter))
+                // Special cases like santa and btr
+                if (bot.IsRole(WildSpawnType.gifter) || bot.IsRole(WildSpawnType.shooterBTR))
                 {
                     continue;
                 }
