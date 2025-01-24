@@ -67,7 +67,11 @@ namespace PleaseJustFight.Patches
             
             foreach (IPlayer humanPlayer in humanPlayers)
             {
-                newBot.BotsGroup.AddEnemy(humanPlayer, EBotEnemyCause.initial);
+                // Scav run check
+                if (humanPlayer.Profile.Info.Side != EPlayerSide.Savage)
+                {
+                    newBot.BotsGroup.AddEnemy(humanPlayer, EBotEnemyCause.initial);
+                }
             }
 
             IEnumerable<BotOwner> activatedBots = Singleton<IBotGame>.Instance.BotsController.Bots.BotOwners
