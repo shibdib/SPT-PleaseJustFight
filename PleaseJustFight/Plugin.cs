@@ -2,8 +2,8 @@
 
 namespace PleaseJustFight
 {
-    [BepInPlugin("com.shibdib.pjf", "PleaseJustFight", "1.0.4")]
-    [BepInDependency("com.SPT.custom", "3.10.0")]
+    [BepInPlugin("com.shibdib.pjf", "PleaseJustFight", "1.1")]
+    [BepInDependency("com.SPT.custom", "3.11.0")]
     public class PleaseJustFight : BaseUnityPlugin
     {
         private void Awake()
